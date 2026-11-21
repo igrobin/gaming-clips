@@ -1,0 +1,175 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#090b14">
+<title>Gaming Clips</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#090b14;color:#fff;font-family:Arial,sans-serif}
+header{padding:22px 18px;background:#111525;border-bottom:1px solid #272d42}
+.logo{font-size:25px;font-weight:900;color:#a78bfa}
+.logo span{color:#fff}
+header p{color:#9ca3af;font-size:12px;margin-bottom:0}
+main{max-width:650px;margin:auto;padding:18px}
+h2{font-size:19px}
+.card{background:#141a2b;border:1px solid #293149;border-radius:14px;padding:16px;margin:16px 0}
+input{width:100%;padding:13px;margin:7px 0 12px;background:#090e1c;border:1px solid #374151;border-radius:9px;color:white;font-size:14px}
+button{background:#8b5cf6;color:white;border:0;padding:13px 16px;border-radius:9px;font-weight:bold;cursor:pointer}
+button:active{opacity:.7}
+.secondary{background:#293149}
+#player{width:100%;aspect-ratio:16/9;border:0;border-radius:10px;background:#080a10}
+.muted{color:#9ca3af;font-size:12px}
+.clip{padding:12px 0;border-bottom:1px solid #30364a;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.clip strong{font-size:13px}
+.clip small{display:block;color:#a78bfa;margin-top:5px}
+.delete{background:#40202b;padding:8px}
+footer{text-align:center;color:#6b7280;font-size:11px;padding:25px}
+</style>
+</head>
+<body>
+<header>
+ <div class="logo">GAME<span>CLIPS</span> ⚡</div>
+ <p>Your gaming highlights workspace</p>
+</header>
+
+<main>
+ <section class="card">
+  <h2>🎮 Add YouTube Livestream</h2>
+  <input id="videoUrl" placeholder="Paste YouTube video or livestream URL">
+  <button onclick="loadVideo()">Load Video ↗</button>
+  <p class="muted">Paste a public YouTube video link to preview it.</p>
+ </section>
+
+ <section class="card">
+  <h2>📺 Video Preview</h2>
+  <iframe id="player" allowfullscreen
+   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+  <p class="muted" id="videoStatus">Your video will appear here.</p>
+ </section>
+
+ <section class="card">
+  <h2>✂️ Create Highlight Marker</h2>
+  <label class="muted">Highlight name</label>
+  <input id="clipName" placeholder="e.g. 1v4 Clutch / Headshot">
+
+  <label class="muted">Timestamp (HH:MM:SS)</label>
+  <input id="clipTime" placeholder="00:02:35">
+
+  <button onclick="addClip()">+ Add Highlight</button>
+ </section>
+
+ <section class="card">
+  <h2>🏆 My Highlights</h2>
+  <div id="clipList">
+   <p class="muted">No highlights added yet.</p>
+  </div>
+  <button class="secondary" onclick="exportClips()">Export Highlight List</button>
+ </section>
+</main>
+
+<footer>GAMECLIPS • Your gaming, your moments.</footer>
+
+<script>
+let videoId = "";
+let clips = JSON.parse(localStorage.getItem("gameclips") || "[]");
+
+function loadVideo(){
+ const url=document.getElementById("videoUrl").value.trim();
+ const patterns=[
+  /(?:youtube\.com\/watch\?.*v=)([a-zA-Z0-9_-]{11})/,
+  /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+  /youtube\.com\/(?:live|embed|shorts)\/([a-zA-Z0-9_-]{11})/
+ ];
+ let match=null;
+ for(const p of patterns){
+  match=url.match(p);
+  if(match)break;
+ }
+ if(!match){
+  alert("Please enter a valid YouTube video URL.");
+  return;
+ }
+ videoId=match[1];
+ document.getElementById("player").src=
+  "https://www.youtube-nocookie.com/embed/"+videoId;
+ document.getElementById("videoStatus").textContent=
+  "Video loaded. You can now add highlight timestamps.";
+}
+
+function validTime(t){
+ return /^(\d{1,3}):([0-5]\d):([0-5]\d)$/.test(t);
+}
+
+function addClip(){
+ const name=document.getElementById("clipName").value.trim();
+ const time=document.getElementById("clipTime").value.trim();
+ if(!videoId){
+  alert("Load a YouTube video first.");
+  return;
+ }
+ if(!name || !validTime(time)){
+  alert("Enter a highlight name and timestamp in HH:MM:SS format.");
+  return;
+ }
+ const [h,m,s]=time.split(":").map(Number);
+ clips.push({
+  name,time,seconds:h*3600+m*60+s,videoId
+ });
+ localStorage.setItem("gameclips",JSON.stringify(clips));
+ document.getElementById("clipName").value="";
+ document.getElementById("clipTime").value="";
+ renderClips();
+}
+
+function renderClips(){
+ const list=document.getElementById("clipList");
+ if(!clips.length){
+  list.innerHTML='<p class="muted">No highlights added yet.</p>';
+  return;
+ }
+ list.innerHTML="";
+ clips.forEach((c,i)=>{
+  const item=document.createElement("div");
+  item.className="clip";
+  const details=document.createElement("div");
+  const title=document.createElement("strong");
+  title.textContent=c.name;
+  const time=document.createElement("small");
+  time.textContent=c.time;
+  details.append(title,time);
+  const remove=document.createElement("button");
+  remove.className="delete";
+  remove.textContent="✕";
+  remove.onclick=()=>{
+   clips.splice(i,1);
+   localStorage.setItem("gameclips",JSON.stringify(clips));
+   renderClips();
+  };
+  item.append(details,remove);
+  list.append(item);
+ });
+}
+
+function exportClips(){
+ if(!clips.length){
+  alert("Add some highlights first.");
+  return;
+ }
+ const data=clips.map(c=>
+  c.name+" | "+c.time+" | https://www.youtube.com/watch?v="+c.videoId+"&t="+c.seconds+"s"
+ ).join("\n");
+ const blob=new Blob([data],{type:"text/plain"});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="gaming-highlights.txt";
+ a.click();
+ URL.revokeObjectURL(a.href);
+}
+
+renderClips();
+</script>
+</body>
+</html>
